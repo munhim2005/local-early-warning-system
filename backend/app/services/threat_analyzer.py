@@ -16,10 +16,6 @@ class ThreatAnalyzer:
             # Extract earthquake data if present
             if "earthquake" in raw_data.get("source", "").lower():
                 return await self._parse_earthquake(raw_data)
-            elif "flood" in raw_data.get("source", "").lower():
-                return await self._parse_flood(raw_data)
-            elif "weather" in raw_data.get("source", "").lower():
-                return await self._parse_weather_warning(raw_data)
             elif raw_data.get("source") == "nasa_eonet":
                 return await self._parse_eonet(raw_data)
             elif raw_data.get("source") == "gdacs":
@@ -63,54 +59,7 @@ class ThreatAnalyzer:
             "raw_source": "PMD Seismic Network"
         }
     
-    async def _parse_flood(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Parse flood-level data"""
-        
-        water_level = data.get("water_level") or data.get("level")
-        if water_level:
-            water_level = float(water_level)
-        else:
-            return None
-        
-        # Determine severity based on water level in meters
-        if water_level < settings.FLOOD_LEVEL_THRESHOLD:
-            severity = SeverityLevel.MEDIUM
-        else:
-            severity = SeverityLevel.HIGH if water_level < 5.0 else SeverityLevel.CRITICAL
-        
-        return {
-            "event_type": ThreatType.FLOOD.value,
-            "severity_level": severity.value,
-            "description": f"Flood warning: Water level at {water_level:.2f}m",
-            "source_latitude": data.get("latitude"),
-            "source_longitude": data.get("longitude"),
-            "affected_radius_km": data.get("affected_area_km", 10),
-            "magnitude_or_intensity": water_level,
-            "raw_source": "PMD Flood Monitoring"
-        }
     
-    async def _parse_weather_warning(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Parse general weather warnings"""
-        
-        warning_type = data.get("warning_type", "")
-        
-        if "storm" in warning_type.lower() or "wind" in warning_type.lower():
-            wind_speed = data.get("wind_speed") or 0
-            severity = SeverityLevel.LOW if wind_speed < 50 else (
-                SeverityLevel.MEDIUM if wind_speed < 80 else SeverityLevel.HIGH
-            )
-            
-            return {
-                "event_type": ThreatType.WEATHER.value,
-                "severity_level": severity.value,
-                "description": f"Weather warning: High winds ({wind_speed} km/h)",
-                "source_latitude": data.get("latitude"),
-                "source_longitude": data.get("longitude"),
-                "affected_radius_km": data.get("radius_km", 25),
-                "magnitude_or_intensity": wind_speed
-            }
-        
-        return None
     
     async def _parse_eonet(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         category = data.get("category", "")
